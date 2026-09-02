@@ -1,0 +1,19 @@
+# Pintos build directories
+pintos/src/*/build/
+
+# Compiled files
+*.o
+*.d
+*.a
+*.elf
+*.bin
+
+# Debug/generated files
+*.map
+
+# Editor files
+.vscode/
+.idea/
+
+# OS files
+.DS_Store
