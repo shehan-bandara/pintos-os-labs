@@ -70,6 +70,35 @@ static void locate_block_devices (void);
 static void locate_block_device (enum block_type, const char *name);
 #endif
 
+/* Callback function used by thread_foreach() to print thread stats. */
+static void
+print_thread_cb (struct thread *t, void *aux UNUSED)
+{
+  const char *status_str;
+
+  switch (t->status)
+    {
+    case THREAD_RUNNING:
+      status_str = "running";
+      break;
+    case THREAD_READY:
+      status_str = "ready";
+      break;
+    case THREAD_BLOCKED:
+      status_str = "blocked";
+      break;
+    case THREAD_DYING:
+      status_str = "dying";
+      break;
+    default:
+      status_str = "unknown";
+      break;
+    }
+
+  printf("  tid: %d, name: %s, priority: %d, status: %s\n",
+         t->tid, t->name, t->priority, status_str);
+}
+
 int pintos_init (void) NO_RETURN;
 
 /* Pintos main entry point. */
@@ -132,8 +161,100 @@ pintos_init (void)
   if (*argv != NULL) {
     /* Run actions specified on kernel command line. */
     run_actions (argv);
-  } else {
-    // TODO: no command line passed to kernel. Run interactively 
+    } else {
+    /* Interactive shell (CS2042) */
+    printf("\nWelcome to the Pintos Interactive Shell!\n");
+    printf("Type 'exit' to quit, or 'shutdown' to power off.\n\n");
+
+    char input[128];
+
+    while (1)
+      {
+        /* 1. Print the prompt */
+        printf("PintOS> ");
+
+        /* 2. Read a line of input (handling backspaces) */
+        int pos = 0;
+        while (pos < (int) (sizeof(input) - 1))
+          {
+            char c = input_getc();
+
+            /* Enter or Return: finish the command */
+            if (c == '\n' || c == '\r')
+              {
+                input[pos] = '\0';
+                break;
+              }
+            /* Backspace or Delete: erase the last character */
+            else if (c == '\b' || c == 127)
+              {
+                if (pos > 0)
+                  {
+                    pos--;
+                    printf("\b \b");  /* Move cursor back, overwrite with space, move back again */
+                  }
+              }
+            /* Regular character: add to buffer */
+            else
+              {
+                input[pos++] = c;
+                printf("%c", c); 
+              }
+          }
+
+        /* If the buffer filled up without a newline, force-terminate it */
+        if (pos == (int) (sizeof(input) - 1))
+          input[pos] = '\0';
+
+        /* 3. Parse and execute the command */
+        if (strcmp(input, "exit") == 0)
+          {
+            printf("\n");
+            printf("Exiting shell. Goodbye!\n");
+            shutdown_power_off();  /* Exit the while loop, kernel will call shutdown() and thread_exit() */
+          }
+        else if (strcmp(input, "whoami") == 0)
+          {
+            printf("\n");
+            printf("Shehan Bandara - 240060X\n");
+          }
+        else if (strcmp(input, "shutdown") == 0)
+          {
+            printf("\n");
+            printf("Powering off...\n");
+            shutdown_power_off();  /* Immediately halts QEMU */
+          }
+        else if (strcmp(input, "time") == 0)
+          {
+            printf("\n");
+            /* rtc_get_time() returns seconds since Unix epoch */
+            printf("%ld seconds since epoch\n", (long) rtc_get_time());
+          }
+        else if (strcmp(input, "ram") == 0)
+          {
+            printf("\n");
+            /* init_ram_pages is the total number of physical pages */
+            printf("%"PRIu32" kB RAM available\n", init_ram_pages * PGSIZE / 1024);
+          }
+        else if (strcmp(input, "priority") == 0)
+          {
+            printf("\n");
+            printf("Current thread priority: %d\n", thread_current()->priority);
+          }
+        else if (strcmp(input, "thread") == 0)
+          {
+            printf("\n");
+            /* Because 'all_list' is static in thread.c, we must use thread_foreach() */
+            printf("Thread list:\n");
+            thread_foreach(print_thread_cb, NULL);
+          }
+        else if (input[0] != '\0')
+          {
+            printf("\n");
+            /* If the user typed something we don't recognize, show an error */
+            printf("Unknown command: '%s'\n", input);
+          }
+      }
   }
 
   /* Finish up. */
